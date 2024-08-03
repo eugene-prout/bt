@@ -1,5 +1,7 @@
 #include "torrent_file.cpp"
 #include "bencode.hpp"
+#include "hasher.cpp"
+
 
 #include <memory>
 #include <algorithm>
@@ -8,7 +10,7 @@
 class FileParser
 {
 public:
-    std::unique_ptr<TorrentFile> ParseFile(std::string contents)
+    std::unique_ptr<TorrentFile> ParseFile(std::string contents, Hasher hasher)
     {
         auto data = bencode::decode(contents);
         auto announceUrl = std::get<bencode::string>(data["announce"]);
@@ -23,6 +25,8 @@ public:
                                                         { return std::byte(c); }) |
                       std::views::chunk(20) | std::ranges::to<std::vector<std::vector<std::byte>>>();
 
-        return std::make_unique<TorrentFile>(announceUrl, length, name, pieceLength, pieces);
+        auto hashedInfoDict = hasher.GetSHA1HashAsBytes(bencode::encode(infoDict));
+
+        return std::make_unique<TorrentFile>(announceUrl, length, name, pieceLength, pieces, hashedInfoDict);
     }
 };

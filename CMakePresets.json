@@ -7,29 +7,9 @@
         "generator": "Ninja",
         "binaryDir": "${sourceDir}/build",
         "cacheVariables": {
-          "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake"
-        }
-      },
-      {
-        "name": "debug",
-        "displayName": "Debug",
-        "generator": "Ninja",
-        "binaryDir": "${sourceDir}/debug",
-        "cacheVariables": {
-          "CMAKE_TOOLCHAIN_FILE": "/home/eugene/tools/vcpkg/scripts/buildsystems/vcpkg.cmake",
-          "CMAKE_BUILD_TYPE": "Debug"
-        }
-      },
-      {
-        "name": "release",
-        "displayName": "Release",
-        "generator": "Ninja",
-        "binaryDir": "${sourceDir}/release",
-        "cacheVariables": {
-          "CMAKE_TOOLCHAIN_FILE": "/home/eugene/tools/vcpkg/scripts/buildsystems/vcpkg.cmake",
-          "CMAKE_BUILD_TYPE": "Release"
+          "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+          "CMAKE_CXX_COMPILER": "g++-14"
         }
       }
-  
     ]
   }

@@ -4,9 +4,9 @@
 class TorrentFile
 {
 public:
-    TorrentFile(std::string announceUrl, int length, std::string name, int pieceLengthInBytes, std::vector<std::vector<std::byte>> pieces)
+    TorrentFile(std::string announceUrl, int length, std::string name, int pieceLengthInBytes, std::vector<std::vector<std::byte>> pieces, std::vector<std::byte> infoHash)
         : AnnounceUrl{announceUrl}, LengthInBytes{length}, Name{name}, PieceLengthInBytes{pieceLengthInBytes},
-          Pieces{pieces}
+          Pieces{pieces}, InfoHash{infoHash}
     {
     }
     
@@ -15,4 +15,5 @@ public:
     std::string Name;
     int PieceLengthInBytes;
     std::vector<std::vector<std::byte>> Pieces;
+    std::vector<std::byte> InfoHash;
 };
