@@ -61,3 +61,45 @@ void trim(std::string& s)
     rtrim(s);
     ltrim(s);
 }
+
+// https://stackoverflow.com/a/46931770
+std::vector<std::string> split(std::string_view sv, std::string delimiter) {
+    std::size_t pos_start = 0;
+    std::size_t pos_end;
+
+    std::size_t delim_len = delimiter.length();
+    std::string token;
+    std::vector<std::string> res;
+
+    while ((pos_end = sv.find(delimiter, pos_start)) != std::string::npos) {
+        token = std::string(sv.substr(pos_start, pos_end - pos_start));
+        pos_start = pos_end + delim_len;
+        res.push_back(token);
+    }
+
+    res.push_back(std::string(sv.substr(pos_start)));
+    
+    return res;
+}
+
+std::vector<std::string> split_on_first(std::string_view sv, std::string delimiter) {
+    std::size_t pos_start = 0;
+    std::size_t pos_end;
+
+    std::size_t delim_len = delimiter.length();
+    std::string token;
+    std::vector<std::string> res;
+
+    pos_end = sv.find(delimiter, pos_start);
+    
+    if (pos_end == std::string::npos) {
+        throw std::runtime_error("String does not contain delimiter.");
+    }
+
+    token = std::string(sv.substr(pos_start, pos_end - pos_start));
+    pos_start = pos_end + delim_len;
+    res.push_back(token);
+    res.push_back(std::string(sv.substr(pos_start)));
+    
+    return res;
+}

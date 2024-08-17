@@ -5,6 +5,7 @@
 #include <optional>
 #include <iostream>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <sstream>
 #include <vector>
@@ -22,7 +23,6 @@
 
 HTTPClient::HTTPClient()
 {
-    // Create SSL context.
     ctx = SSL_CTX_new(TLS_client_method());
     if (ctx == NULL)
     {
@@ -40,8 +40,6 @@ HTTPClient::HTTPClient()
     {
         throw std::runtime_error("Failed to set the minimum TLS protocol version.");
     }
-    // Finished setting up SSL context.
-
 }
 
 HTTPClient::~HTTPClient()
@@ -96,8 +94,9 @@ HTTPResponse HTTPClient::MakeHTTPRequest(Url requestUrl)
     return {200, {}, std::move(response.str())};
 }
 
+
 // TODO: test this, then refactor to return response
-void HTTPClient::MakeHTTPSRequest(Url requestUrl)
+HTTPResponse HTTPClient::MakeHTTPSRequest(Url requestUrl)
 {
     SSL* ssl = SSL_new(ctx);
     if (ssl == NULL)
@@ -205,13 +204,17 @@ void HTTPClient::MakeHTTPSRequest(Url requestUrl)
     }
 
     size_t readbytes;
-    char buf[160];
+    std::vector<char> buf(500);
+    std::stringstream string_response;
+    HTTPResponse response;
+    int records_read = 0;
+    bool response_chunked;
 
     /*
      * Get up to sizeof(buf) bytes of the response. We keep reading until the
      * server closes the connection.
      */
-    while (SSL_read_ex(ssl, buf, sizeof(buf), &readbytes))
+    while (SSL_read_ex(ssl, buf.data(), buf.size(), &readbytes))
     {
         /*
          * OpenSSL does not guarantee that the returned data is a string or
@@ -220,11 +223,51 @@ void HTTPClient::MakeHTTPSRequest(Url requestUrl)
          * have NUL characters in the middle of it. For this simple example
          * we're going to print it to stdout anyway.
          */
-        fwrite(buf, 1, readbytes, stdout);
+        // fwrite(buf, 1, readbytes, stdout);
+        auto chunk = std::string(buf.begin(), buf.begin() + readbytes);
+        string_response << chunk;
+        if (records_read == 0)
+        {
+            auto response_lines = split(chunk, "\r\n");
+
+            std::string status_line;
+
+            auto chunks = split(response_lines.at(0), " ");
+            response.StatusCode = std::stoi(chunks.at(1));
+            
+            // Drop the status line and read until there are no more headers.
+            auto headers_lines = response_lines
+                                    | std::views::drop(1)
+                                    | std::views::take_while([](std::string line) { return line != ""; });
+
+            std::map<std::string, std::string> headers = {};
+            for (auto& line : headers_lines)
+            {
+                auto split_line = split_on_first(line, ":");
+                std::for_each(split_line.begin(), split_line.end(), [](std::string& s) { trim(s);});
+                headers[split_line.at(0)] = split_line.at(1);
+            }
+
+            if (headers.contains("Transfer-Encoding") && headers.at("Transfer-Encoding") == "chunked")
+            {
+                response_chunked = true;
+            }
+
+            response.Headers = headers;
+        }
+
+        // TODO: implement understanding that the response is chunked + how to process it.
+        // Don't handle chunked extensions.
+
+
+
+
+        std::cout << std::string(buf.begin(), buf.begin() + 3) << " : read: " << readbytes << std::endl;
+        buf.clear();
+        buf.resize(500);
     }
     
-    // In case the response didn't finish with a newline we add one now
-    printf("\n");
+    // std::cout << std::endl << string_response.str() << std::endl;
 
     /*
      * Check whether we finished the while loop above normally or as the
@@ -259,4 +302,6 @@ void HTTPClient::MakeHTTPSRequest(Url requestUrl)
      * via SSL_set_bio(). The BIO will be freed when we free the SSL object.
      */
     SSL_free(ssl);
+
+    return response;
 }

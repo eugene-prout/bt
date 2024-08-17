@@ -71,12 +71,12 @@ void TestUrlParsing()
     std::cout << "All good!" << std::endl;
 }
     
-std::vector<std::string> SplitOnDelimiter(std::string_view inputString, char delimiter)
-{
-    return inputString
-            | std::views::split(delimiter)
-            | std::ranges::to<std::vector<std::string>>();
-}
+// std::vector<std::string> SplitOnDelimiter(std::string_view inputString, char delimiter)
+// {
+//     return inputString
+//             | std::views::split(delimiter)
+//             | std::ranges::to<std::vector<std::string>>();
+// }
 
 
 
@@ -90,7 +90,8 @@ int main()
     // PrintData();
     // TestUrlParsing();
     // httpsTest();
-    auto url = "https://www.google.com";
+    // auto url = "https://www.google.com";
+    auto url = "https://torrent.ubuntu.com/";
     auto httpClient = HTTPClient();
     httpClient.MakeHTTPSRequest(ParseUrl(url));
 

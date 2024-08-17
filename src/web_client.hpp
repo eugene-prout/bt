@@ -35,7 +35,7 @@ public:
     ~HTTPClient();
     // TODO: add timeouts
     HTTPResponse MakeHTTPRequest(Url requestUrl);
-    void MakeHTTPSRequest(Url requestUrl);
+    HTTPResponse MakeHTTPSRequest(Url requestUrl);
 private:
     SSL_CTX* ctx;
 };
