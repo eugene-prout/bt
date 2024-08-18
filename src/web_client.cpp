@@ -1,4 +1,5 @@
 #include "url.hpp"
+#include "utils.hpp"
 #include "web_client.hpp"
 
 #include <format>
@@ -17,7 +18,6 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <netinet/in.h>
-
 
 #include <openssl/ssl.h>
 
@@ -56,7 +56,7 @@ HTTPResponse HTTPClient::MakeHTTPRequest(Url requestUrl)
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
-    
+
     auto port = std::to_string(requestUrl.port);
     auto status = getaddrinfo(requestUrl.hostname.c_str(), port.c_str(), &hints, &result);
 
@@ -89,22 +89,31 @@ HTTPResponse HTTPClient::MakeHTTPRequest(Url requestUrl)
 
     close(sockfd);
 
-    std::cout << std::endl << response.str() << std::endl;
+    std::cout << std::endl
+              << response.str() << std::endl;
 
     return {200, {}, std::move(response.str())};
 }
 
+enum class ParsingState
+{
+    None,
+    ParsingHeaders,
+    ParsingBody,
+    ParsingBodyChunk
+};
 
-// TODO: test this, then refactor to return response
+// TODO: think about how this handles the SSL/TLS records chunking and buffering.
+// TODO: protect against this https://owasp.org/www-community/attacks/HTTP_Response_Splitting
 HTTPResponse HTTPClient::MakeHTTPSRequest(Url requestUrl)
 {
-    SSL* ssl = SSL_new(ctx);
+    SSL *ssl = SSL_new(ctx);
     if (ssl == NULL)
     {
         throw std::runtime_error("Failed to create the SSL object.");
     }
-    
-    BIO_ADDRINFO* res;
+
+    BIO_ADDRINFO *res;
     auto port = std::to_string(requestUrl.port);
 
     if (!BIO_lookup_ex(requestUrl.hostname.c_str(), port.c_str(), BIO_LOOKUP_CLIENT, AF_INET, SOCK_STREAM, 0, &res))
@@ -112,7 +121,7 @@ HTTPResponse HTTPClient::MakeHTTPSRequest(Url requestUrl)
         throw std::runtime_error("Failed to BIO lookup ex.");
     }
 
-    const BIO_ADDRINFO* ai = NULL;
+    const BIO_ADDRINFO *ai = NULL;
     auto sock = -1;
     for (ai = res; ai != NULL; ai = BIO_ADDRINFO_next(ai))
     {
@@ -143,7 +152,7 @@ HTTPResponse HTTPClient::MakeHTTPSRequest(Url requestUrl)
     BIO_ADDRINFO_free(res);
 
     // Create a BIO to wrap the socket
-    BIO* bio = BIO_new(BIO_s_socket());
+    BIO *bio = BIO_new(BIO_s_socket());
     if (bio == NULL)
     {
         BIO_closesocket(sock);
@@ -186,12 +195,12 @@ HTTPResponse HTTPClient::MakeHTTPSRequest(Url requestUrl)
     if (SSL_connect(ssl) < 1)
     {
         std::string error_message = "Failed to connect to the server.";
-        
+
         // If the failure is due to a verification error we can get more information about
         // it from SSL_get_verify_result().
         if (SSL_get_verify_result(ssl) != X509_V_OK)
             error_message += std::format("Verify error: {}.", X509_verify_cert_error_string(SSL_get_verify_result(ssl)));
-        
+
         throw std::runtime_error(error_message);
     }
 
@@ -207,8 +216,6 @@ HTTPResponse HTTPClient::MakeHTTPSRequest(Url requestUrl)
     std::vector<char> buf(500);
     std::stringstream string_response;
     HTTPResponse response;
-    int records_read = 0;
-    bool response_chunked;
 
     /*
      * Get up to sizeof(buf) bytes of the response. We keep reading until the
@@ -226,49 +233,87 @@ HTTPResponse HTTPClient::MakeHTTPSRequest(Url requestUrl)
         // fwrite(buf, 1, readbytes, stdout);
         auto chunk = std::string(buf.begin(), buf.begin() + readbytes);
         string_response << chunk;
-        if (records_read == 0)
-        {
-            auto response_lines = split(chunk, "\r\n");
-
-            std::string status_line;
-
-            auto chunks = split(response_lines.at(0), " ");
-            response.StatusCode = std::stoi(chunks.at(1));
-            
-            // Drop the status line and read until there are no more headers.
-            auto headers_lines = response_lines
-                                    | std::views::drop(1)
-                                    | std::views::take_while([](std::string line) { return line != ""; });
-
-            std::map<std::string, std::string> headers = {};
-            for (auto& line : headers_lines)
-            {
-                auto split_line = split_on_first(line, ":");
-                std::for_each(split_line.begin(), split_line.end(), [](std::string& s) { trim(s);});
-                headers[split_line.at(0)] = split_line.at(1);
-            }
-
-            if (headers.contains("Transfer-Encoding") && headers.at("Transfer-Encoding") == "chunked")
-            {
-                response_chunked = true;
-            }
-
-            response.Headers = headers;
-        }
 
         // TODO: implement understanding that the response is chunked + how to process it.
         // Don't handle chunked extensions.
-
-
-
-
-        std::cout << std::string(buf.begin(), buf.begin() + 3) << " : read: " << readbytes << std::endl;
         buf.clear();
         buf.resize(500);
     }
-    
+
     // std::cout << std::endl << string_response.str() << std::endl;
 
+    auto response_lines = split(string_response.str(), "\r\n");
+
+    auto chunkedStatusLine = split(response_lines.at(0), " ");
+    response.StatusCode = std::stoi(chunkedStatusLine.at(1));
+
+    // We expect the response headers first.
+    auto state = ParsingState::ParsingHeaders;
+
+    bool response_chunked;
+    std::map<std::string, std::string> headers = {};
+
+    int current_chunk_size = -1;
+    std::stringstream response_body;
+
+    for (auto line : response_lines | std::views::drop(1))
+    {
+        if (state == ParsingState::ParsingHeaders)
+        {
+            if (line == "")
+            {
+                // End of headers.
+                if (headers.contains("Transfer-Encoding"))
+                {
+                    if (headers.at("Transfer-Encoding") == "chunked")
+                    {
+                        response_chunked = true;
+                        state = ParsingState::ParsingBodyChunk;
+                    }
+                    else
+                    {
+                        throw std::runtime_error("Unsupported Transfer-Encoding scheme.");
+                    }
+                }
+                else
+                {
+                    state = ParsingState::ParsingBody;
+                }
+                response.Headers = headers;
+                
+            }
+            else
+            {
+               auto split_line = split_on_first(line, ":");
+                std::for_each(split_line.begin(), split_line.end(), [](std::string &s)
+                            { trim(s); });
+                headers[split_line.at(0)] = split_line.at(1);
+            }
+        }
+        else if (state == ParsingState::ParsingBodyChunk)
+        {
+            if (current_chunk_size == -1)
+            {
+                current_chunk_size = std::stoi(line, nullptr, 16);
+            }
+            else if (current_chunk_size == 0 && line == "")
+            {
+                // End of chunks
+                state = ParsingState::None;
+            }
+            else
+            {
+                response_body << line;
+                current_chunk_size = -1;
+            }
+        }
+        else if (state == ParsingState::ParsingBody)
+        {
+            response_body << line;
+        }
+    }
+
+    response.Body = response_body.str();
     /*
      * Check whether we finished the while loop above normally or as the
      * result of an error. The 0 argument to SSL_get_error() is the return

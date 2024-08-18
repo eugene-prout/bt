@@ -1,6 +1,7 @@
+#include "bencode.hpp"
 #include "file_parser.hpp"
 #include "utils.hpp"
-
+#include "url.hpp"
 #include "web_client.cpp"
 
 #include <algorithm>
@@ -11,8 +12,6 @@
 #include <print>
 #include <ranges>
 #include <utility>
-
-
 
 void PrintData()
 {
@@ -33,14 +32,9 @@ void PrintData()
     // std::cout << f->LengthInBytes << std::endl;
 }
 
-
-
 bool StructUrlEqual(Url struct1, Url struct2)
 {
-    return struct1.protocol == struct2.protocol
-            && struct1.hostname == struct2.hostname
-            && struct1.port == struct2.port
-            && struct1.path == struct2.path;
+    return struct1.protocol == struct2.protocol && struct1.hostname == struct2.hostname && struct1.port == struct2.port && struct1.path == struct2.path;
 }
 
 void AssertEqual(Url url1, Url url2)
@@ -55,14 +49,13 @@ void AssertEqual(Url url1, Url url2)
 void TestUrlParsing()
 {
     std::vector<std::pair<std::string, Url>> testCases =
-    {
-        {"http://torrent.ubuntu.com", Url{TrackerProtocol::HTTP, "torrent.ubuntu.com", 80, "/"}},
-        {"http://torrent.ubuntu.com/test", Url{TrackerProtocol::HTTP, "torrent.ubuntu.com", 80, "/test"}},
-        {"http://localhost:3000", Url{TrackerProtocol::HTTP, "localhost", 3000, "/"}},
-        {"http://localhost:3000/test", Url{TrackerProtocol::HTTP, "localhost", 3000, "/test"}}
-    };
+        {
+            {"http://torrent.ubuntu.com", Url{TrackerProtocol::HTTP, "torrent.ubuntu.com", 80, "/"}},
+            {"http://torrent.ubuntu.com/test", Url{TrackerProtocol::HTTP, "torrent.ubuntu.com", 80, "/test"}},
+            {"http://localhost:3000", Url{TrackerProtocol::HTTP, "localhost", 3000, "/"}},
+            {"http://localhost:3000/test", Url{TrackerProtocol::HTTP, "localhost", 3000, "/test"}}};
 
-    for (const auto& [urlString, expectedResult] : testCases)
+    for (const auto &[urlString, expectedResult] : testCases)
     {
         auto result = ParseUrl(urlString);
         AssertEqual(result, expectedResult);
@@ -70,57 +63,80 @@ void TestUrlParsing()
 
     std::cout << "All good!" << std::endl;
 }
-    
-// std::vector<std::string> SplitOnDelimiter(std::string_view inputString, char delimiter)
-// {
-//     return inputString
-//             | std::views::split(delimiter)
-//             | std::ranges::to<std::vector<std::string>>();
-// }
+
+struct PeerConnection
+{
+    std::vector<std::byte> ipAddress;
+    int port;
+};
 
 
+struct TrackerResponse
+{
+    int interval;
+    std::vector<PeerConnection> peers;
+};
+
+std::string ipAddressToString(std::vector<std::byte> ipAddressOctets)
+{
+    return ipAddressOctets
+            | std::views::transform([](std::byte b) { return std::to_string(std::to_integer<int>(b)); })
+            | std::views::join_with('.')
+            | std::ranges::to<std::string>();
+}
 
 int main()
 {
-    // Hasher hasher{};
-    // std::string hash{"2AA4F5A7E209E54B32803D43670971C4C8CAAA05"};
-    // std::cout << hash << std::endl;
-    // std::cout << UrlEncodeBytes(hexStringToBytes(hash)) << std::endl;
-    // std::cout << "TEST" << std::endl;
-    // PrintData();
-    // TestUrlParsing();
-    // httpsTest();
-    // auto url = "https://www.google.com";
-    auto url = "https://torrent.ubuntu.com/";
-    auto httpClient = HTTPClient();
-    httpClient.MakeHTTPSRequest(ParseUrl(url));
+    std::ifstream infile{"/home/eugene/programming/bt/data/ubuntu-24.04-desktop-amd64.iso.torrent"};
 
-    // auto str = std::string("HTTP/1.0 200 OK\r\nServer: BaseHTTP/0.6 Python/3.12.3\r\nDate: Tue, 06 Aug 2024 10:48:50 GMT\r\nContent-type: text/html\r\n\r\nHello, world!");
-    // std::erase(str, '\r');
-    // auto response_lines = SplitOnDelimiter(str, '\n');
+    std::stringstream buffer;
+    buffer << infile.rdbuf();
 
-    // std::string status_line;
+    FileParser p{};
 
-    // auto chunks = SplitOnDelimiter(response_lines.at(0), ' ');
-    // auto responseCode = std::stoi(chunks.at(1));
+    Hasher hasher{};
+
+    auto f = p.ParseFile(buffer.str(), hasher);
+
+    std::map<std::string, std::string> query_parameters = {
+        {"info_hash", UrlEncodeBytes(f->InfoHash)},
+        {"peer_id", "aaaaaaaaaaaaaaaaaaaa"},
+        {"port", "6881"},
+        {"uploaded", "0"},
+        {"downloaded", "0"},
+        {"left", "12345"},
+        {"compact", "1"}
+    };
     
-    // auto headers_lines = response_lines
-    //                         | std::views::drop(1)
-    //                         | std::views::take_while([](std::string line) { return line != ""; });
+    auto path = std::format("{}?{}", f->AnnounceUrl.path, ConvertParametersToQueryString(query_parameters));
 
-    // std::map<std::string, std::string> headers = {};
-    // for (auto& line : headers_lines)
-    // {
-    //     // This splits on all colons. If there are multiple colons in the string it will be truncated.
-    //     auto split_line = SplitOnDelimiter(line, ':');
-    //     if (split_line.size() != 2)
-    //     {
-    //         // Log error
-    //     }
+    auto url_struct = Url(f->AnnounceUrl.protocol, f->AnnounceUrl.hostname, f->AnnounceUrl.port, path);
 
-    //     std::for_each(split_line.begin(), split_line.end(), [](std::string& s) { trim(s);});
-        
-    //     headers[split_line.at(0)] = split_line.at(1);
-    // }
+    auto httpClient = HTTPClient();
+    auto r = httpClient.MakeHTTPSRequest(url_struct);
+    auto data = bencode::decode(r.Body.value());
 
+    auto value = std::get<bencode::dict>(data);
+    auto interval = std::get<bencode::integer>(data["interval"]);
+    auto peers_present = value.find("peers") != value.end(); 
+    if (peers_present)
+    {
+        auto peers = std::get<bencode::string>(data["peers"]);
+        auto byteGroups = peers | std::views::transform([](char c) { return std::byte(c); })
+                                | std::views::chunk(6);
+
+        for (auto address_range : byteGroups)
+        {
+            auto ipAddress = address_range | std::views::take(4) | std::ranges::to<std::vector<std::byte>>();;
+            std::cout << ipAddressToString(ipAddress) << std::endl;
+
+            auto port = address_range | std::views::drop(4) | std::ranges::to<std::vector<std::byte>>();
+            auto portValue = (port[0] << 8) | port[1];
+            std::cout << std::to_string(std::to_integer<int>(portValue)) << std::endl;
+        }
+    }
+    else
+    {
+        std::cout << "No peers present." << std::endl;
+    }
 }

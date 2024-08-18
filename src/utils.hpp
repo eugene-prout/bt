@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -18,3 +19,5 @@ void trim(std::string& s);
 std::vector<std::string> split(std::string_view sv, std::string delimiter);
 
 std::vector<std::string> split_on_first(std::string_view sv, std::string delimiter);
+
+std::string ConvertParametersToQueryString(const std::map<std::string, std::string> &query_parameters);
