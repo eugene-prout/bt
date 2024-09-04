@@ -3,11 +3,11 @@
 #include "torrent_file.hpp"
 #include "hasher.hpp"
 
-#include <memory>
-#include <algorithm>
-
-class FileParser
+namespace BT
 {
-public:
-    std::unique_ptr<TorrentFile> ParseFile(std::string contents, Hasher hasher);
-};
+    class FileParser
+    {
+    public:
+        TorrentFile ParseFile(std::string contents, Hasher hasher);
+    };
+}

@@ -21,21 +21,24 @@
 
 #include <openssl/ssl.h>
 
-struct HTTPResponse
+namespace BT
 {
-    int StatusCode;
-    std::map<std::string, std::string> Headers;
-    std::optional<std::string> Body;
-};
+    struct HTTPResponse
+    {
+        int StatusCode;
+        std::map<std::string, std::string> Headers;
+        std::optional<std::string> Body;
+    };
 
-class HTTPClient
-{
-public:
-    HTTPClient();
-    ~HTTPClient();
-    // TODO: add timeouts
-    HTTPResponse MakeHTTPRequest(Url requestUrl);
-    HTTPResponse MakeHTTPSRequest(Url requestUrl);
-private:
-    SSL_CTX* ctx;
-};
+    class HTTPClient
+    {
+    public:
+        HTTPClient();
+        ~HTTPClient();
+        // TODO: add timeouts
+        HTTPResponse MakeHTTPRequest(Url requestUrl);
+        HTTPResponse MakeHTTPSRequest(Url requestUrl);
+    private:
+        SSL_CTX* ctx;
+    };
+}

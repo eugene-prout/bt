@@ -1,21 +1,28 @@
 #pragma once
 
+#include "piece.hpp"
 #include "url.hpp"
 
 #include <string>
 #include <vector>
 
-
-class TorrentFile
+namespace BT
 {
-public:
-    TorrentFile(Url announceUrl, int length, std::string name, int pieceLengthInBytes, 
-                std::vector<std::vector<std::byte>> pieces, std::vector<std::byte> infoHash);
+    class TorrentFile
+    {
+    public:
+        TorrentFile(Url announceUrl, long long int length, std::string name, long long int pieceLengthInBytes, 
+                    std::vector<std::vector<std::byte>> pieceHashes, std::vector<std::byte> infoHash);
 
-    Url AnnounceUrl;
-    int LengthInBytes;
-    std::string Name;
-    int PieceLengthInBytes;
-    std::vector<std::vector<std::byte>> Pieces;
-    std::vector<std::byte> InfoHash;
-};
+        Url AnnounceUrl;
+        long long int LengthInBytes;
+        std::string Name;
+        long long int PieceLengthInBytes;
+        std::vector<std::vector<std::byte>> PieceHashes;
+        std::vector<std::byte> InfoHash;
+
+        void PrintDetails() const;
+        std::vector<Piece> GetPieces();
+    };
+}
+

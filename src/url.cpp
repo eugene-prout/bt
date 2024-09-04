@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <string>
 
-Url ParseUrl(std::string_view urlView)
+BT::Url BT::ParseUrl(std::string_view urlView)
 {
     int protocolLength;
     TrackerProtocol protocol;
@@ -57,8 +57,7 @@ Url ParseUrl(std::string_view urlView)
     return {protocol, hostname, port, path};
 }
 
-std::string ToString(Url url)
+std::string BT::ToString(Url url)
 {
-    // Url{TrackerProtocol::HTTP, "localhost", 3000, "/"}
-    return std::format("Url{{{}, {}, {}, {}}}", TrackerProtocols.at(url.protocol), url.hostname, url.port, url.path);
+    return std::format("{}://{}:{}{}", TrackerProtocols.at(url.protocol), url.hostname, url.port, url.path);
 }

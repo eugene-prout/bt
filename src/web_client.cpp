@@ -21,7 +21,7 @@
 
 #include <openssl/ssl.h>
 
-HTTPClient::HTTPClient()
+BT::HTTPClient::HTTPClient()
 {
     ctx = SSL_CTX_new(TLS_client_method());
     if (ctx == NULL)
@@ -42,13 +42,13 @@ HTTPClient::HTTPClient()
     }
 }
 
-HTTPClient::~HTTPClient()
+BT::HTTPClient::~HTTPClient()
 {
     SSL_CTX_free(ctx);
 }
 
 // TODO: add timeouts
-HTTPResponse HTTPClient::MakeHTTPRequest(Url requestUrl)
+BT::HTTPResponse BT::HTTPClient::MakeHTTPRequest(Url requestUrl)
 {
     addrinfo hints = {};
     addrinfo *result;
@@ -80,7 +80,7 @@ HTTPResponse HTTPClient::MakeHTTPRequest(Url requestUrl)
     std::vector<char> buf(5000);
     std::stringstream response;
 
-    while (bytes_read = recv(sockfd, buf.data(), buf.size(), 0))
+    while ((bytes_read = recv(sockfd, buf.data(), buf.size(), 0)))
     {
         response << std::string(buf.data());
         buf.clear();
@@ -105,7 +105,7 @@ enum class ParsingState
 
 // TODO: think about how this handles the SSL/TLS records chunking and buffering.
 // TODO: protect against this https://owasp.org/www-community/attacks/HTTP_Response_Splitting
-HTTPResponse HTTPClient::MakeHTTPSRequest(Url requestUrl)
+BT::HTTPResponse BT::HTTPClient::MakeHTTPSRequest(Url requestUrl)
 {
     SSL *ssl = SSL_new(ctx);
     if (ssl == NULL)
