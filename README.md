@@ -2,15 +2,15 @@
 
 A BitTorrent client implemented in C++23.
 
-Currently the client only supports downloading pieces to an in-memory buffer.
+Currently the client is Linux-only and supports downloading pieces to an in-memory buffer.
 
 # Features
 
-- Parsing a `.torrent` file.
+- `.torrent` file parser.
 - Connecting to trackers.
 - CLI with documented commands.
 - TCP client written from scratch.
-- HTTP client written from scratch.
+- HTTP(S) client written from scratch.
 - BitTorrent protocol (de)serialisation written from scratch.
 
 # Command line interface
