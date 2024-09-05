@@ -1,34 +1,32 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
-namespace BT
-{
-    class TCPConnection
-    {
-    public:
-        TCPConnection(int fd);
-        ~TCPConnection();
+namespace BT {
+class TCPConnection {
+public:
+  TCPConnection(int fd);
+  ~TCPConnection();
 
-        TCPConnection(const TCPConnection&&) = delete;
-        TCPConnection& operator=(const TCPConnection&&) = delete;
+  TCPConnection(const TCPConnection &&) = delete;
+  TCPConnection &operator=(const TCPConnection &&) = delete;
 
-        void SendMessage(std::string& message);
-        void SendMessage(std::vector<std::byte>& message);
+  void SendMessage(std::string &message);
+  void SendMessage(std::vector<std::byte> &message);
 
-        std::string ReceiveMessageUntilBufferEmpty();
-        std::string ReceiveMessage(int size);
+  std::string ReceiveMessageUntilBufferEmpty();
+  std::string ReceiveMessage(int size);
 
-        void CloseConnection();
+  void CloseConnection();
 
-    private:
-        int _fd;
-    };
+private:
+  int _fd;
+};
 
-    class TCPConnectionFactory
-    {
-    public:
-        TCPConnection static OpenConnection(std::string hostname, int port);
-    };
-}
+class TCPConnectionFactory {
+public:
+  TCPConnection static OpenConnection(std::string hostname, int port);
+};
+} // namespace BT

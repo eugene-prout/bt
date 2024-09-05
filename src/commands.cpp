@@ -1,81 +1,77 @@
-#include "bencode.hpp"
 #include "commands.hpp"
+#include "bencode.hpp"
 #include "file_parser.hpp"
-#include <lyra/lyra.hpp>
-#include "utils.hpp"
-#include "url.hpp"
 #include "peer.hpp"
-#include "tracker.hpp"
 #include "tcp_client.hpp"
+#include "tracker.hpp"
+#include "url.hpp"
+#include "utils.hpp"
+#include <lyra/lyra.hpp>
 
 #include <algorithm>
+#include <chrono>
+#include <format>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <format>
 #include <print>
 #include <ranges>
-#include <utility>
 #include <thread>
-#include <chrono>
+#include <utility>
 
-void BT::ParseCommand(std::string& filename)
-{
-    std::ifstream infile{filename};
+void BT::ParseCommand(std::string &filename) {
+  std::ifstream infile{filename};
 
-    std::stringstream buffer;
-    buffer << infile.rdbuf();
+  std::stringstream buffer;
+  buffer << infile.rdbuf();
 
-    FileParser p{};
-    Hasher hasher{};
+  FileParser p{};
+  Hasher hasher{};
 
-    auto f = p.ParseFile(buffer.str(), hasher);
-    f.PrintDetails();
+  auto f = p.ParseFile(buffer.str(), hasher);
+  f.PrintDetails();
 }
 
-void BT::DownloadCommand(std::string& filename)
-{
-    std::ifstream infile{filename};
+void BT::DownloadCommand(std::string &filename) {
+  std::ifstream infile{filename};
 
-    std::stringstream buffer;
-    buffer << infile.rdbuf();
-    
+  std::stringstream buffer;
+  buffer << infile.rdbuf();
 
-    FileParser parser{};
+  FileParser parser{};
 
-    Hasher hasher{};
+  Hasher hasher{};
 
-    auto f = parser.ParseFile(buffer.str(), hasher);
-    std::cout << "Parsed torrent file for '" << f.Name << "'." << std::endl;
+  auto f = parser.ParseFile(buffer.str(), hasher);
+  std::cout << "Parsed torrent file for '" << f.Name << "'." << std::endl;
 
-    std::cout << "Querying tracker at '" << ToString(f.AnnounceUrl) << "'." << std::endl;
-    int attempts = 0;
-    TrackerResponse response;
-    while (attempts < 5)
-    {
-        response = QueryTrackerForPeers(f);
+  std::cout << "Querying tracker at '" << ToString(f.AnnounceUrl) << "'." << std::endl;
+  int attempts = 0;
+  TrackerResponse response;
+  while (attempts < 5) {
+    response = QueryTrackerForPeers(f);
 
-        if (response.peers.size() > 0)
-        {
-            std::cout << "Tracker responsed with " << response.peers.size() << " peers." << std::endl;
-            break;
-        }
-
-        std::cout << "No peers in tracker response. Attempt " << (attempts + 1) << " failed. Retrying in 10 seconds." << std::endl;
-
-        attempts++;
-        std::this_thread::sleep_for(std::chrono::seconds(10));
+    if (response.peers.size() > 0) {
+      std::cout << "Tracker responsed with " << response.peers.size() << " peers." << std::endl;
+      break;
     }
 
-    if (response.peers.size() == 0)
-        throw std::runtime_error("No peers found after multiple attempts.");
+    std::cout << "No peers in tracker response. Attempt " << (attempts + 1) << " failed. Retrying in 10 seconds."
+              << std::endl;
 
-    TCPConnectionFactory connectionFactory;
+    attempts++;
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+  }
 
-    auto peer = response.peers.at(0); 
+  if (response.peers.size() == 0)
+    throw std::runtime_error("No peers found after multiple attempts.");
 
-    Peer p{connectionFactory, peer, f.InfoHash};
+  TCPConnectionFactory connectionFactory;
 
-    auto pieces = f.GetPieces();
-    p.Download(pieces);
+  auto peer = response.peers.at(0);
+
+  Peer p{connectionFactory, peer, f.InfoHash};
+
+  auto pieces = f.GetPieces();
+  p.Download(pieces);
 }

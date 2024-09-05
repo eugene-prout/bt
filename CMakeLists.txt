@@ -12,6 +12,8 @@ add_executable(bt
     src/file_parser.hpp
     src/hasher.cpp
     src/hasher.hpp
+    src/http_client.cpp
+    src/http_client.hpp
     src/main.cpp
     src/messages.cpp
     src/messages.hpp
@@ -28,9 +30,7 @@ add_executable(bt
     src/url.cpp
     src/url.hpp
     src/utils.cpp
-    src/utils.hpp
-    src/web_client.cpp
-    src/web_client.hpp)
+    src/utils.hpp)
 
 add_library(bt_lib INTERFACE)
 target_include_directories(bt_lib INTERFACE
