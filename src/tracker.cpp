@@ -35,7 +35,7 @@ BT::TrackerResponse BT::QueryTrackerForPeers(TorrentFile& torrentFile)
     auto url_struct = Url(torrentFile.AnnounceUrl.protocol, torrentFile.AnnounceUrl.hostname, torrentFile.AnnounceUrl.port, path);
 
     auto httpClient = HTTPClient();
-    auto r = httpClient.MakeHTTPSRequest(url_struct);
+    auto r = httpClient.MakeHTTPSGetRequest(url_struct);
     auto data = bencode::decode(r.Body.value());
 
     auto value = std::get<bencode::dict>(data);
@@ -67,21 +67,20 @@ BT::TrackerResponse BT::QueryTrackerForPeers(TorrentFile& torrentFile)
 
 std::string BT::SerialiseHandshake(HandshakeMessage message)
 {
-    std::stringstream buffer;
+    std::string buffer;
 
     const std::string protocol = "BitTorrent protocol";
-    buffer << static_cast<char>(protocol.length());
-    buffer << protocol;
+    buffer += static_cast<char>(protocol.length());
+    buffer += protocol;
     
     for (int i = 0; i < 8; i++)
-        buffer << '\0';
+        buffer += '\0';
 
-    buffer << EncodeBytesAsCharacters(message.InfoHash);
-    buffer << message.PeerId;
+    buffer += EncodeBytesAsCharacters(message.InfoHash);
+    buffer += message.PeerId;
 
-    auto len = buffer.str().length();
-    assert (buffer.str().length() == protocol.length() + 49);
-    return buffer.str();
+    assert (buffer.length() == protocol.length() + 49);
+    return buffer;
 }
 
 
@@ -99,6 +98,8 @@ BT::HandshakeMessage BT::DerialiseHandshake(std::string message)
 {
     HandshakeMessage output = {};
     auto size = static_cast<int>(message[0]);
+    if (message.size() - 1 != size)
+        throw std::runtime_error("Message size does not match size of string to deserialise.");
     
     auto protocol = message.substr(1, 19);
     output.ProtocolString = protocol;

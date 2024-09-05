@@ -14,10 +14,10 @@ namespace BT
         TCPConnection(const TCPConnection&&) = delete;
         TCPConnection& operator=(const TCPConnection&&) = delete;
 
-        int SendMessage(std::string& message);
-        int SendMessage(std::vector<std::byte>& message);
+        void SendMessage(std::string& message);
+        void SendMessage(std::vector<std::byte>& message);
 
-        std::string ReceiveMessage();
+        std::string ReceiveMessageUntilBufferEmpty();
         std::string ReceiveMessage(int size);
 
         void CloseConnection();

@@ -10,54 +10,24 @@
 #include <sstream>
 #include <vector>
 
-std::string BT::UrlEncodeBytes(const std::vector<std::byte>& bytesToConvert)
+std::string BT::UrlEncodeBytes(const std::span<const std::byte> bytesToConvert)
 {
-    std::stringstream encodedBytes;
-    encodedBytes << std::hex;
+    std::string encodedBytes;
+    encodedBytes.reserve(bytesToConvert.size() * 3);
 
     for (auto b : bytesToConvert)
-    {
-        encodedBytes << "%" << std::setw(2) << std::setfill('0') << std::to_integer<int>(b);
-    }
+        encodedBytes.append(UrlEncodeByte(b));
 
-    return encodedBytes.str();
+    return encodedBytes;
 }
 
-std::string BT::UrlEncodeByte(std::byte byte)
+std::string BT::UrlEncodeByte(const std::byte byte)
 {
     return std::format("%{:02X}", std::to_integer<int>(byte));
 }
 
-std::string BT::DecodeBytesToHex(auto &&byteList)
-{
-    std::stringstream ss{};
-    for (auto const b : byteList)
-    {
-        ss << std::setfill('0') << std::setw(2) << std::hex << std::to_integer<int>(b);
-    }
-
-    return ss.str();
-}
-
-std::vector<std::byte> BT::ConvertHexStringToBytes(const std::string &hex)
-{
-    // TODO: string_view to a range and then group and transform.
-    // TODO: test this somehow.
-
-    std::vector<std::byte> bytes;
-    bytes.reserve(hex.length() / 2); // Reserve space for efficiency
-
-    for (size_t i = 0; i < hex.length(); i += 2)
-    {
-        std::byte byte{static_cast<uint8_t>(std::stoi(hex.substr(i, 2), nullptr, 16))};
-        bytes.push_back(byte);
-    }
-
-    return bytes;
-}
-
 // https://stackoverflow.com/a/67604259
-std::vector<std::byte> BT::EncodeStringAsBytes(std::string_view s)
+std::vector<std::byte> BT::EncodeStringAsBytes(const std::string_view s)
 {
     std::vector<std::byte> bytes;
     bytes.reserve(s.size());
@@ -69,9 +39,10 @@ std::vector<std::byte> BT::EncodeStringAsBytes(std::string_view s)
 }
 
 // https://stackoverflow.com/a/67604259
-std::vector<std::string> BT::ToHex(std::vector<std::byte> const& v)
+std::vector<std::string> BT::ToHex(const std::span<const std::byte> v)
 {
     std::vector<std::string> bytes;
+    bytes.reserve(v.size());
       
     std::transform(std::begin(v), std::end(v), std::back_inserter(bytes), [](std::byte byte){
         return std::format("{:02X}", std::to_integer<int>(byte));
@@ -91,28 +62,34 @@ std::string BT::EncodeBytesAsCharacters(const std::span<const std::byte> bytes) 
 }
 
 
-void BT::ltrim(std::string &s)
+void ltrim(std::string &s)
 {
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](char ch)
-                                    { return !std::isspace(ch); }));
+    auto start_of_text = std::find_if(s.begin(), s.end(), [](unsigned char c) { return !std::isspace(c); });
+    s.erase(s.begin(), start_of_text);
 }
 
-void BT::rtrim(std::string &s)
+void rtrim(std::string &s)
 {
-    s.erase(std::find_if(s.rbegin(), s.rend(), [](char ch)
-                         { return !std::isspace(ch); })
-                .base(),
-            s.end());
+    auto end_of_text = std::find_if(s.rbegin(), s.rend(), [](unsigned char c) { return !std::isspace(c); }).base();
+    s.erase(end_of_text, s.end());
 }
 
-void BT::trim(std::string &s)
+void BT::TrimInPlace(std::string &s)
 {
     rtrim(s);
     ltrim(s);
 }
 
+std::string BT::Trim(const std::string &s)
+{
+    auto output_string = std::string{s};
+    rtrim(output_string);
+    ltrim(output_string);
+    return output_string;
+}
+
 // https://stackoverflow.com/a/46931770
-std::vector<std::string> BT::split(std::string_view sv, std::string delimiter)
+std::vector<std::string> BT::Split(const std::string_view sv, const std::string& delimiter)
 {
     std::size_t pos_start = 0;
     std::size_t pos_end;
@@ -123,49 +100,29 @@ std::vector<std::string> BT::split(std::string_view sv, std::string delimiter)
 
     while ((pos_end = sv.find(delimiter, pos_start)) != std::string::npos)
     {
-        token = std::string(sv.substr(pos_start, pos_end - pos_start));
+        res.emplace_back(sv.substr(pos_start, pos_end - pos_start));
         pos_start = pos_end + delim_len;
-        res.push_back(token);
     }
 
-    res.push_back(std::string(sv.substr(pos_start)));
+    res.emplace_back(sv.substr(pos_start));
 
     return res;
 }
 
-std::vector<std::string> BT::split_on_first(std::string_view sv, std::string delimiter)
+std::tuple<std::string, std::string> BT::SplitOnFirst(const std::string_view sv, const std::string& delimiter)
 {
-    std::size_t pos_start = 0;
-    std::size_t pos_end;
+    auto delimiter_length = delimiter.length();
+    auto delimiter_position = sv.find(delimiter, 0);
 
-    std::size_t delim_len = delimiter.length();
-    std::string token;
-    std::vector<std::string> res;
-
-    pos_end = sv.find(delimiter, pos_start);
-
-    if (pos_end == std::string::npos)
-    {
+    if (delimiter_position == std::string::npos)
         throw std::runtime_error("String does not contain delimiter.");
-    }
 
-    token = std::string(sv.substr(pos_start, pos_end - pos_start));
-    pos_start = pos_end + delim_len;
-    res.push_back(token);
-    res.push_back(std::string(sv.substr(pos_start)));
+    auto second_half = delimiter_position + delimiter_length;
 
-    return res;
+    return { std::string(sv.substr(0, delimiter_position)), std::string(sv.substr(second_half)) };
 }
 
-std::string BT::ConvertParametersToQueryString(const std::map<std::string, std::string> &query_parameters)
-{
-    return query_parameters | std::views::transform([](std::pair<std::string, std::string> pair)
-                                                    { return std::format("{}={}", pair.first, pair.second); }) 
-                            | std::views::join_with('&')
-                            | std::ranges::to<std::string>();
-}
-
-std::string BT::IPAddressToString(const std::vector<std::byte>& ipAddressOctets)
+std::string BT::IPAddressToString(const std::span<const std::byte> ipAddressOctets)
 {
     return ipAddressOctets
             | std::views::transform([](std::byte b) { return std::to_string(std::to_integer<int>(b)); })
@@ -173,7 +130,7 @@ std::string BT::IPAddressToString(const std::vector<std::byte>& ipAddressOctets)
             | std::ranges::to<std::string>();
 }
 
-std::array<std::byte, 4> BT::EncodeIntegerForMessage(unsigned int integer)
+std::array<std::byte, 4> BT::EncodeIntegerForMessage(const unsigned int integer)
 {
     return std::array<std::byte, 4> {
         static_cast<std::byte>((integer >> 24) & 0xFF),
@@ -183,7 +140,7 @@ std::array<std::byte, 4> BT::EncodeIntegerForMessage(unsigned int integer)
     };
 }
 
-long long int BT::DecodeIntegerFromMessage(std::span<std::byte> integerAsBytes)
+long long int BT::DecodeIntegerFromMessage(const std::span<const std::byte> integerAsBytes)
 {
     long long int result = 0;
     result |= std::to_integer<long long int>(integerAsBytes[0]) << 24;

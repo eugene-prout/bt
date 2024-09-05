@@ -37,7 +37,7 @@ namespace BT
         ~HTTPClient();
         // TODO: add timeouts
         HTTPResponse MakeHTTPRequest(Url requestUrl);
-        HTTPResponse MakeHTTPSRequest(Url requestUrl);
+        HTTPResponse MakeHTTPSGetRequest(Url requestUrl);
     private:
         SSL_CTX* ctx;
     };

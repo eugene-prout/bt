@@ -70,27 +70,12 @@ void BT::DownloadCommand(std::string& filename)
     if (response.peers.size() == 0)
         throw std::runtime_error("No peers found after multiple attempts.");
 
-    // auto peer = PeerDetails { 
-    //     {std::byte{185}, std::byte{125}, std::byte{190}, std::byte{59}},
-    //     6893
-    // };
-
     TCPConnectionFactory connectionFactory;
 
-    // auto ip = IPAddressToString(response.peers.at(0).ipAddress);
     auto peer = response.peers.at(0); 
 
     Peer p{connectionFactory, peer, f.InfoHash};
 
     auto pieces = f.GetPieces();
     p.Download(pieces);
-    // auto connection = connectionFactory.OpenConnection(ip, response.peers.at(0).port);
-
-    // HandshakeWithPeer(connection, f->InfoHash);
-
-    // std::cout << "Blocking for bitfield." << std::endl;
-    // auto bitfield = connection.ReceiveMessage();
-    // std::cout << "Received bitfield message of " << bitfield.size() << " bytes." << std::endl;
-
-
 }

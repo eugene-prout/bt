@@ -8,37 +8,27 @@
 
 namespace BT
 {
-    std::string UrlEncodeBytes(const std::vector<std::byte>& bytesToConvert);
+    std::string UrlEncodeBytes(const std::span<const std::byte> bytesToConvert);
 
-    std::string UrlEncodeByte(std::byte byte);
+    std::string UrlEncodeByte(const std::byte byte);
 
-    std::string UrlEncodeBytes(const std::array<std::byte, 8>& bytesToConvert);
+    std::vector<std::byte> EncodeStringAsBytes(const std::string_view s);
 
-    std::vector<std::byte> EncodeStringAsBytes(std::string_view s);
-
-    std::vector<std::string> ToHex(std::vector<std::byte> const& v);
+    std::vector<std::string> ToHex(const std::span<const std::byte> v);
 
     std::string EncodeBytesAsCharacters(const std::span<const std::byte> bytes);
 
-    std::string DecodeBytesToHex(auto &&byteList);
+    void TrimInPlace(std::string& s);
 
-    std::vector<std::byte> ConvertHexStringToBytes(const std::string &hex);
+    std::string Trim(const std::string& s);
 
-    void ltrim(std::string& s);
+    std::vector<std::string> Split(const std::string_view sv, const std::string& delimiter);
 
-    void rtrim(std::string& s);
+    std::tuple<std::string, std::string> SplitOnFirst(const std::string_view sv, const std::string& delimiter);
 
-    void trim(std::string& s);
+    std::string IPAddressToString(const std::span<const std::byte> ipAddressOctets);
 
-    std::vector<std::string> split(std::string_view sv, std::string delimiter);
+    std::array<std::byte, 4> EncodeIntegerForMessage(const unsigned int integer);
 
-    std::vector<std::string> split_on_first(std::string_view sv, std::string delimiter);
-
-    std::string ConvertParametersToQueryString(const std::map<std::string, std::string> &query_parameters);
-
-    std::string IPAddressToString(const std::vector<std::byte>& ipAddressOctets);
-
-    std::array<std::byte, 4> EncodeIntegerForMessage(unsigned int integer);
-
-    long long int DecodeIntegerFromMessage(std::span<std::byte> integerAsBytes);
+    long long int DecodeIntegerFromMessage(const std::span<const std::byte> integerAsBytes);
 }

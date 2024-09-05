@@ -5,7 +5,6 @@ project(bt)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_BUILD_TYPE Debug)
 
-
 add_executable(bt
     src/commands.cpp
     src/commands.hpp
@@ -40,11 +39,9 @@ target_include_directories(bt_lib INTERFACE
 target_link_libraries(bt PRIVATE bt_lib)
 
 
-find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
-set(CLANG_TIDY_COMMAND "${CLANG_TIDY_EXE}" "-checks=-modernize-use-trailing-return-type")
-
-set_target_properties(bt PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_COMMAND}")
-
+# find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
+# set(CLANG_TIDY_COMMAND "${CLANG_TIDY_EXE}" "-checks=-modernize-use-trailing-return-type")
+# set_target_properties(bt PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_COMMAND}")
 
 find_package(cryptopp CONFIG REQUIRED)
 target_link_libraries(bt PRIVATE cryptopp::cryptopp)

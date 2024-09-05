@@ -50,11 +50,8 @@ BT::BitTorrentMessage BT::ReadMessage(TCPConnection &connection)
 BT::Peer::Peer(TCPConnectionFactory &connectionFactory, PeerDetails &details, const std::vector<std::byte> &infoHash)
     : connection(connectionFactory.OpenConnection(IPAddressToString(details.ipAddress), details.port))
 {
-    auto handshakeSucceeded = HandshakeWithPeer(connection, infoHash);
-    if (!handshakeSucceeded)
-    {
+    if (!HandshakeWithPeer(connection, infoHash))
         throw std::runtime_error("Failed to handshake with peer. Peer responded with unexpected message.");
-    }
 }
 
 constexpr long long int BLOCK_SIZE = 16384;
@@ -90,7 +87,6 @@ void BT::Peer::Download(std::vector<Piece> &pieces)
         {
             if (!pieceInProgress.has_value())
                 throw std::runtime_error("Unexpected piece message. No piece download in progress.");
-            // piece: <len=0009+X><id=7><index><begin><block>
 
             // verify that piece index is correct
             std::span<std::byte> data{message.Content};
@@ -104,10 +100,8 @@ void BT::Peer::Download(std::vector<Piece> &pieces)
             auto beginBytes = data.subspan(4, 4);
             auto parsedBegin = DecodeIntegerFromMessage(beginBytes);
 
-            auto dataSize = message.Length - 9;
+            // TODO: assert that downloadedPieceBuffer.size() == message.Length - 9
             std::copy(message.Content.begin() + 8, message.Content.end(), downloadedPieceBuffer.begin() + parsedBegin);
-            
-
 
             if (blocksToDownload.empty())
             {
@@ -146,15 +140,12 @@ void BT::Peer::Download(std::vector<Piece> &pieces)
                     "Sending request message.",
                     havePiece) << std::endl;
                 
-                
                 auto piece = pieces.at(havePiece);
 
                 auto blocks = piece.GetBlocks();
 
-                // Update data.
                 pieceInProgress = havePiece;
-                
-                // Empty the queue.
+
                 while (!blocksToDownload.empty())
                     blocksToDownload.pop();
 
@@ -163,7 +154,6 @@ void BT::Peer::Download(std::vector<Piece> &pieces)
                     blocksToDownload.push(*it);
                 }
                 
-                // Reset piece buffer
                 downloadedPieceBuffer.clear();
                 downloadedPieceBuffer.reserve(piece.GetSize());
 

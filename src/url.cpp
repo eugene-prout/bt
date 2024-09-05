@@ -3,6 +3,7 @@
 #include <format>
 #include <stdexcept>
 #include <string>
+#include <ranges>
 
 BT::Url BT::ParseUrl(std::string_view urlView)
 {
@@ -60,4 +61,12 @@ BT::Url BT::ParseUrl(std::string_view urlView)
 std::string BT::ToString(Url url)
 {
     return std::format("{}://{}:{}{}", TrackerProtocols.at(url.protocol), url.hostname, url.port, url.path);
+}
+
+std::string BT::ConvertParametersToQueryString(const std::map<std::string, std::string> &query_parameters)
+{
+    return query_parameters | std::views::transform([](std::pair<std::string, std::string> pair)
+                                                    { return std::format("{}={}", pair.first, pair.second); }) 
+                            | std::views::join_with('&')
+                            | std::ranges::to<std::string>();
 }

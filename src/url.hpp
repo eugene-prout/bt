@@ -28,8 +28,9 @@ namespace BT
         std::string path;
     };
 
-
     Url ParseUrl(std::string_view urlView);
 
     std::string ToString(Url url);
+
+    std::string ConvertParametersToQueryString(const std::map<std::string, std::string> &query_parameters);
 }

@@ -19,44 +19,52 @@ BT::TCPConnection::~TCPConnection()
     CloseConnection();
 }
 
-int BT::TCPConnection::SendMessage(std::string& message)
+void BT::TCPConnection::SendMessage(std::string& message)
 {
-    return send(_fd, message.c_str(), message.length(), 0);
+    auto bytes_sent = send(_fd, message.data(), message.size(), 0);
+
+    // TODO: Improve this guard as the message may not send in 1 call.
+    if (bytes_sent != message.size())
+        throw std::runtime_error("Did not send full message.");
 }
 
-int BT::TCPConnection::SendMessage(std::vector<std::byte>& message)
+void BT::TCPConnection::SendMessage(std::vector<std::byte>& message)
 {
-    
-    return send(_fd, message.data(), message.size(), 0);
+    auto bytes_sent = send(_fd, message.data(), message.size(), 0);
+
+    // TODO: Improve this guard as the message may not send in 1 call.
+    if (bytes_sent != message.size())
+        throw std::runtime_error("Did not sent full message.");
 }
 
-std::string BT::TCPConnection::ReceiveMessage()
+std::string BT::TCPConnection::ReceiveMessageUntilBufferEmpty()
 {
     int bytes_read;
-    std::vector<char> buf(1000);
-    std::stringstream response;
+    std::array<char, 1000> buf;
+    std::string response;
 
     while ((bytes_read = recv(_fd, buf.data(), buf.size(), 0)))
     {
         if (bytes_read < 0)
             throw std::runtime_error("Error reading from socket.");
-        response.write(buf.data(), bytes_read);
+        
+        response.insert(response.end(), buf.begin(), buf.begin() + bytes_read);
     }
 
-    return response.str();
+    return response;
 }
+
 
 std::string BT::TCPConnection::ReceiveMessage(int size)
 {
-    std::vector<char> buf(size);
-    std::stringstream response;
+    std::vector<char> buf;
+    buf.reserve(size);
 
     auto bytes_read = recv(_fd, buf.data(), buf.size(), 0);
     if (bytes_read < 0)
         throw std::runtime_error("Error reading from socket.");
-    response.write(buf.data(), bytes_read);
 
-    return response.str();
+    return std::string(buf.begin(), buf.end());
 }
 
 void BT::TCPConnection::CloseConnection()

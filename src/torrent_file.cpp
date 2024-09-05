@@ -41,7 +41,7 @@ std::vector<BT::Piece> BT::TorrentFile::GetPieces()
     std::vector<Piece> pieces;
     pieces.reserve(numberOfFullPieces + 1);
 
-    for (int i = 0; i < numberOfFullPieces; i++)
+    for (long long i = 0; i < numberOfFullPieces; i++)
     {
         auto [numberOfFullBlocks, sizeOfFinalBlock] = std::div(PieceLengthInBytes, BLOCK_SIZE);
         
